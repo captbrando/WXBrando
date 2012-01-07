@@ -154,7 +154,8 @@ can start graphing!
 
 You should edit the include statements at the top of buildstuff-cli.php
 to make sure that the paths to JPGraph and the included "weatherdesc.php"
-file are correct. Then, set up a crontab entry to automatically run
+file are correct, as well as the database information right below those
+include statements. Then, set up a crontab entry to automatically run
 either the buildstuff-cli.php file if you are just doing local graphing,
 or you can run the copy.files.sh shell script (after you modify it of 
 course) which will both run buildstuff-cli.php as well as copy the
@@ -167,6 +168,25 @@ Your crontab entry might look like this:
 */1 * * * * www-data /var/www/weather/copy.files.sh
 
 In my case, I run the script every minute.
+
+Now, a couple of other customizations that you should be aware of.
+I built my page so I could get a snapshot of both the weather 
+forecast and the current radar return from the National Weather
+Service. That code is roughly halfway down. Look for these lines:
+
+        $output .= "<center><h3>Current Radar (Base Reflectivity)</h3><a href=\"http://www.srh.noaa.gov/ridge/radar.php?rid=FWS&product=NCR&overlay=11101111&loop=yes\"><img
+src=\"http://www.findu.com/cgi-bin/radar-find.cgi?call=N5BX\" border=0></a><br><font size=\"-2\">(Click on radar to see it in motion)</font>\n";
+        $output .= "<br><br><h3><a href=\"http://forecast.weather.gov/MapClick.php?lat=33.02853639193054&lon=-97.06352233886719&site=fwd&smap=1&marine=0&unit=0&lg=en\">National Weather Service Forecast</a></h3><? include ('forecast.html');?>\n";
+
+This should give you a few clues... for example, why do we generate
+.php files instead of .html? We need to do includes! If you extract the
+URLs by themselves and put them in your browser, you will see what
+we are doing here. If you are a ham operator, go to findu.com and 
+drop in your call sign that you are broadcasting from vanprod to 
+the APRS network. Grab that image source for your source here, and then
+edit the link to go to your local NWS weather page. Then deposit it in 
+the lines above.  You will also need to do that in the getweather.pl 
+script that I hacked together inside the $forecast var. 
 
 While the files are definitely complete and ready for installation, 
 these instructions may not be. If you run into problems, email me
