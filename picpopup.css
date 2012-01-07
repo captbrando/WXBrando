@@ -1,0 +1,97 @@
+#pic {
+	background-color: #FFFFFF;
+	left: 10px;
+	postiion: relative;
+	top: 10px;
+	width: 1px;
+}
+
+#pic .large {
+	border: 0px;
+	display: block;
+	height: 1px;
+	left: -1px;
+	position: absolute;
+	top: -1px;
+	width: 1px;
+}
+
+#pic a img {
+	border: 0;
+}
+
+#pic a.p1, #pic a.p1:visited {
+	display: block;
+	height: 15px;
+	left: 0;
+	position: relative;
+	text-decoration: none;
+	top: 0;
+	width: 210px;
+	z-index: 2;
+}
+
+#pic a.p1:hover {
+	color: #000000;
+	text-decoration: none;
+}
+
+#pic a.p1:hover .large {
+	background-color: #FFFFFF;
+	display: block;
+	height: 190px;
+	left: 70px;
+	position: relative;
+	top: -50px;
+	width: 250px;
+	z-index: 2;
+}
+
+#pic2 {
+	background-color: #FFFFFF;
+	left: 10px;
+	postiion: relative;
+	top: 10px;
+	width: 1px;
+}
+
+#pic2 .large {
+	border: 0px;
+	display: block;
+	height: 1px;
+	left: -1px;
+	position: absolute;
+	top: -1px;
+	width: 1px;
+}
+
+#pic2 a img {
+	border: 0;
+}
+
+#pic2 a.p1, #pic a.p1:visited {
+	display: block;
+	height: 15px;
+	left: 0;
+	position: relative;
+	text-decoration: none;
+	top: 0;
+	width: 210px;
+	z-index: 1;
+}
+
+#pic2 a.p1:hover {
+	color: #000000;
+	text-decoration: none;
+}
+
+#pic2 a.p1:hover .large {
+	background-color: #FFFFFF;
+	display: block;
+	height: 190px;
+	left: 70px;
+	position: relative;
+	top: -50px;
+	width: 250px;
+	z-index: 1;
+}

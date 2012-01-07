@@ -1,0 +1,177 @@
+WXBrando v1.0 (01/07/2012)  
+WXBrando is maintained by Branden R. Williams <brw@brandolabs.com> 
+
+Homepage: http://www.brandolabs.com/wxbrando
+
+If you are interested in contributing to the project please email 
+the maintainer directly.
+------------------------------------------------------------------
+Copyright 2012 Branden R. Williams.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+------------------------------------------------------------------
+
+Thanks for downloading WXBrando! I hope it will be as useful for you
+as it has been for me over the many, many years I have run this package. 
+In order to take full advantage of this software, you should be using
+a Davis Weather Vantage Pro 2 system. For more info, visit their
+site at http://davisnet.com/weather/. If you have the original Vantage 
+Pro, this software SHOULD work, but keep in mind, this has only been
+fully tested and used on a Vantage Pro 2 sytem. 
+
+There are two main components to this software package. First, we
+need to get the data out of the weather station console and into
+a database. This README will not go through the process of setting 
+up a Linux machine, connecting your Davis console up, and grabbing
+your initial data link from the device. In order to use this software,
+you should already have that going, and be using VANPROD, something
+you can pick up via CPAN by Stan Sander (N5KJT). 
+
+http://www.cpan.org/authors/id/S/ST/STSANDER/vanprod-doc.html
+
+The first thing you need to do is setup your MySQL database. You don't
+HAVE to use MySQL, this will work fine in any RDBMS provided that you
+tweak some of the verbiage to match that particular system's naming
+conventions. Here's what the table looks like:
+
+CREATE TABLE currentobs (
+	weather_stamp DATETIME NOT NULL,
+	barometer DECIMAL( 4, 2 ),
+	out_temp DECIMAL( 3, 1 ),
+	avg_wind_speed INT( 3 ),
+	wind_speed INT( 3 ),
+	comp_dir CHAR( 3 ),
+	out_hum INT( 3 ),
+	dewpoint DECIMAL( 3, 1 ),
+	wind_chill INT( 3 ),
+	heat_index INT( 3 ),
+	rain_rate DECIMAL( 4, 2 ),
+	day_rain DECIMAL( 4, 2 ),
+	mon_rain DECIMAL( 4, 2 ),
+	year_rain DECIMAL( 4, 2 ),
+	sunrise TIME,
+	sunset TIME,
+	in_temp DECIMAL( 3, 1 ),
+	in_hum INT( 3 ),
+	in_dewpoint DECIMAL( 3, 1 ),
+	trend CHAR( 2 ),
+	forecast_icon INT( 3 ),
+	forecast_rule INT( 3 ),
+	storm_start DATE NOT NULL,
+	storm_rain DECIMAL( 4, 2 ),
+	rain24 DECIMAL( 4, 2 ),
+	rain1 DECIMAL( 4, 2 ),
+	con_rate DECIMAL( 4, 2 ),
+	PRIMARY KEY ( weather_stamp )
+);
+
+A few things you should be aware of. Once you build this database and 
+make your modifications to vanprod, you will be generating one record
+per minute while it is running. For comparison, I have over 3.3 million
+rows in this table--virtually every entry from the first on May 8, 2005.
+I am not running this on a beefy machine, and most of the queries run
+in under a second. The main reason is because every query is based on 
+the weather_stamp primary key. The database is indexed and optimized
+to search on that, and we typically don't pull more than twelve hours
+of data at any given time.
+
+If vanprod loses contact with the console, or the console loses contact
+with the actual station, you may get weird data. Specifically, the 
+console rain rate may default to 655.35. If you have this problem often,
+you can replace the rate to 0.0 if you find 655.35 stored.
+
+Next, depending on where you live, you may want to alter the rain rate
+that is deposited to the database. Stan originally coded this to take
+a moving average of sorts to the rain rate such that there would not
+be these jagged edges and rediculous spikes when downpours happened.
+I am a storm spotter, and having the actual rain rate sampled for any 
+given minute is important for me to report my findings. Thus, I 
+modified the following line:
+
+
+
+BEFORE:
+unless($sensor_exclude & 32){ $url .= "&rainin=$rate&dailyrainin=$dayrain"; };
+
+AFTER:
+unless($sensor_exclude & 32){ $url .= "&rainin=$con_rate&dailyrainin=$dayrain"; };
+
+This line occurs twice in vanprod-2.4 at lines 979 and 1024, and
+vanprod-2.5 at lines 1008 and 1056.
+
+Now it's time to actually insert the information into the database 
+while vanprod is running! To do this, zoom down to line 2315 in
+vanprod-2.4 or 2368 in vanprod-2.5. That line preceeds the log record
+which looks like this:
+
+print DAILY "$hour,$minute,$bar,$outtemp,$avgwindsp,$gust,$avgwinddir,$outhum,$dewpt,$chill,$hi,$intemp,$inhum,$indewpt,$dayrain,$rain1,$rain24,$rainm15,$uv,$srad,$slp\n";
+
+BEFORE that line, create some whitespace and insert the following:
+
+#Brando Hack for Dumping to SQL
+eval{
+	# prepare variables for database entry
+	$dbh = DBI->connect("DBI:$db:$db_name","$db_user","$db_password",{
+        PrintError => 0,
+        RaiseError => 1});
+	my $datestr = strftime "%Y-%m-%d", localtime time;
+	$sth = $dbh->prepare("insert into currentobs values (\'$datestr $hour:$minute:$sec\',$bar,$outtemp,$avgwindsp,$gust,\'$avgwinddir\',$outhum,$dewpt,\'$chill\',\'$hi\',$rate,$dayrain,$monrain,$yearrain,\'$sunrise\',\'$sunset\',$intemp,$inhum,$indewpt,\'$trend\',$forecasticon,$forecastrule,\'$stormstart\',$stormrain,$rain24,$rain1,$con_rate)"); # note the CON RATE!
+	$sth->execute;
+	$sth->finish();
+	$dbh->disconnect;
+}; #end of eval
+
+Now restart vanprod and you should be seeing a new row in your
+database every minute!
+
+Now that the backend is running, it's time to create our front
+end view. To see this in action, go to http://brw.net/wx. It's the
+same Vantage Pro 2 station I referenced above, but you will notice
+some flatlines in the graphs every once in a while. This is due to 
+my signal dropping out periodically. I've worked with Davis on this
+for a while and they have given up. It's 40 feet, line of sight. No 
+reason for the signal to drop!
+
+Anyway... rant aside, that's what the flatlines are.
+
+Before you start running the buildstuff-cli.php file, you must install
+PHP 5 command line tools as well as the free version of jpgraph
+(http://jpgraph.net/) and ensure both are running correctly. There are
+dependencies to getting it runinng like ensuring you have the right 
+graphics libraries compiled and ready to go as well as including the
+right PHP database plugins for your RDBMS. Once that is ready, you 
+can start graphing!
+
+You should edit the include statements at the top of buildstuff-cli.php
+to make sure that the paths to JPGraph and the included "weatherdesc.php"
+file are correct. Then, set up a crontab entry to automatically run
+either the buildstuff-cli.php file if you are just doing local graphing,
+or you can run the copy.files.sh shell script (after you modify it of 
+course) which will both run buildstuff-cli.php as well as copy the
+resulting files over to your web host via SCP. Setting up SSH keys
+is beyond the scope of this document. You need to customize that 
+script as well before execution.
+
+Your crontab entry might look like this:
+
+*/1 * * * * www-data /var/www/weather/copy.files.sh
+
+In my case, I run the script every minute.
+
+While the files are definitely complete and ready for installation, 
+these instructions may not be. If you run into problems, email me
+and I'll see if I can assist!
+
+------------------------------------------------------------------
+If you have any other questions, please visit the homepage at 
+http://www.brandolabs.com/pgmail/.  Thanks.
